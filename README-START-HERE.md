@@ -1,37 +1,46 @@
 # S.A.B Trader — Asal Website Source
 
-Yeh static demo nahi hai. Is package mein asal responsive website, Python local API, SQLite database migration aur setup guide shamil hain. Login aur business records backend se chalte hain; koi demo username/password source mein set nahi.
+Yeh static demo nahi hai. ZIP mein actual responsive website, Python local API, SQLite migration aur setup guide shamil hain. Business records backend mein save hote hain. Koi demo username ya password nahi.
 
-## Windows par chalane ka tareeqa
+## Windows par start karna
 
-1. Python 3 install karein.
-2. PowerShell mein is project folder par aayein.
-3. Pehli dafa Admin account banayein:
+1. ZIP ko extract karein aur extracted project folder kholein.
+2. Python 3 install karein.
+3. PowerShell ko project folder mein open karein.
+4. Pehli dafa Admin account banayein:
 
 ```powershell
 python .\scripts\sabtrader_web.py create-admin --username admin --name "Business Admin"
 ```
 
-Password prompt par apna strong password dein (kam az kam 12 characters). Password source ya GitHub par save nahi hota.
+Apna strong password prompt par dein (kam az kam 12 characters). Password source files mein save nahi hota.
 
-4. Website/backend start karein:
+5. Local website/backend start karein:
 
 ```powershell
 python .\scripts\sabtrader_web.py serve
 ```
 
-5. Isi computer ke browser mein `http://127.0.0.1:8765` kholein aur apne Admin credentials se login karein. Server band karne ke liye PowerShell mein `Ctrl+C` dabayein.
+6. Browser mein `http://127.0.0.1:8765` kholein aur apne Admin credentials se login karein. PowerShell window chalta rehna chahiye. Website rokne ke liye PowerShell mein `Ctrl+C` dabayein.
 
-Database default tor par Windows ke `%LOCALAPPDATA%\SABTrader\data\sabtrader.sqlite` mein banti hai. Is folder ko GitHub par upload na karein.
+`web\index.html` par double-click na karein. Website ko Python server se kholna zaroori hai, warna login API/database connect nahi honge. Is version mein CSS paths relative hain; browser mein server URL use karein.
+
+## Admin panel aur delete controls
+
+Admin login ke baad sidebar mein **Admin panel** kholein. Wahan se staff add kar sakte hain, access remove kar sakte hain aur baad mein restore kar sakte hain. Products, customers aur suppliers mein Delete/Restore controls hain. Jis record ki financial, stock ya transaction history ho, woh permanently erase hone ke bajaye archive hota hai taake purane invoices, balances aur reports mehfooz rahen. Sales/purchases ko delete karne ke bajaye Cancel/Return/Reverse actions istemal karein.
+
+## Data location
+
+SQLite database default tor par Windows ke `%LOCALAPPDATA%\SABTrader\data\sabtrader.sqlite` mein banti hai. Is database, backups, passwords ya customer information ko GitHub par upload na karein.
 
 ## GitHub par source rakhna
 
-1. GitHub par **private repository** banayein.
-2. ZIP extract karke is folder ke tamam source files repository mein upload karein.
-3. `data/`, `.sqlite`, backup files, passwords ya customer records kabhi upload na karein. `.gitignore` database aur secret files ko exclude karta hai.
+1. GitHub par private repository banayein.
+2. ZIP extract karke tamam source files repository mein upload karein.
+3. `.gitignore` database, backups aur local secrets ko exclude karta hai; phir bhi upload se pehle check karein ke koi customer data ya password shamil nahi.
 
-GitHub Pages is application ko production website ke tor par nahi chala sakta, kyun ke Pages Python API ya SQLite database run nahi karta. Is project mein backend Windows computer par chalta hai aur data wahi rehta hai. GitHub source/version control ke liye hai. Isay public internet ya hosting par expose na karein.
+GitHub Pages Python API/SQLite nahi chala sakta. GitHub source/version control ke liye hai, application ka backend Windows computer par chalta hai. Is backend ko public internet par seedha expose na karein.
 
-## Included features aur hadain
+## Included aur abhi baqi
 
-Login, Admin/Staff permissions, dashboard, product/stock, customers/ledger, sales/invoices, supplier purchases, attendance, reports, settings aur manual SQLite backup/restore ka implemented web milestone shamil hai. Existing test notes aur baqi planned kaam `README.md` mein diye gaye hain. Windows installer, Android APK, persistent Android offline queue/sync, scheduled backups aur physical 80mm printer test is ZIP mein deliver nahi kiye gaye; inhein complete kehna durust nahi hoga.
+Website milestone mein login, Admin/Staff permissions, dashboard, products/stock, customers/ledger, sales/invoices, suppliers/purchases, attendance, reports, settings, manual SQLite backup/restore aur record archive/delete controls shamil hain. Windows installer, Android APK/offline sync, scheduled backups, supplier payment ledger aur physical 80mm printer test abhi deliver nahi huay. `README.md` mein tamam known limitations aur prior verification notes hain.

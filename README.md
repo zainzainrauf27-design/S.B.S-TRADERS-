@@ -24,6 +24,8 @@ python .\scripts\sabtrader_web.py create-admin --username admin --name "Business
 python .\scripts\sabtrader_web.py serve
 ```
 
+Do not double-click `web\index.html`: the website must be opened through its local Python server so the stylesheet, login API, and SQLite database all use the correct origin. After login, Admin controls are in the **Admin panel** navigation item. Admin can create staff users, remove their access, and restore it. Product, customer, and supplier rows have Delete/Restore actions. A record with sales, purchase, stock, payment, or opening-balance history is archived instead of permanently erased so reports and ledgers remain intact. Sales and purchases use their reversal actions rather than destructive deletion.
+
 The first command securely prompts for an Admin password (minimum 12 characters). Open `http://127.0.0.1:8765` in a browser. Press Ctrl+C in the server window to stop it. For a development database within the workspace, append `--db .\\work\\sabtrader-dev.sqlite` to both commands.
 
 ## Roles

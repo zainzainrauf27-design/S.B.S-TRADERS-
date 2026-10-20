@@ -675,6 +675,71 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.send_json(400, {"error": str(exc)})
 
+    def do_PATCH(self) -> None:
+        """Admin-only activate/archive controls; records keep their ledger history."""
+        try:
+            payload = self.body()
+            user = self.require_user(admin=True)
+            if not user: return
+            parts = [part for part in urlparse(self.path).path.split("/") if part]
+            if len(parts) != 4 or parts[:2] != ["api", "admin"]:
+                self.send_json(404, {"error": "Endpoint nahin mila."}); return
+            kind, record_id = parts[2], parts[3]
+            tables = {"staff": "users", "products": "products", "customers": "customers", "suppliers": "suppliers"}
+            table = tables.get(kind)
+            if not table: self.send_json(404, {"error": "Record type nahin mila."}); return
+            active = 1 if payload.get("active") else 0
+            with connect(self.app.db_path) as db:
+                row = db.execute(f"SELECT id,role FROM {table} WHERE id=?", (record_id,)).fetchone() if kind == "staff" else db.execute(f"SELECT id FROM {table} WHERE id=?", (record_id,)).fetchone()
+                if not row: self.send_json(404, {"error": "Record nahin mila."}); return
+                if kind == "staff":
+                    if row["role"] != "staff": self.send_json(400, {"error": "Admin account ko staff controls se disable nahin kar sakte."}); return
+                    if record_id == user["id"]: self.send_json(400, {"error": "Apna account disable nahin kar sakte."}); return
+                    if not active:
+                        db.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (now(), record_id))
+                db.execute(f"UPDATE {table} SET active=?,updated_at=? WHERE id=?", (active, now(), record_id))
+                self.app.audit(db, user["id"], "record_activated" if active else "record_archived", kind, record_id, {"active": active})
+            self.send_json(200, {"ok": True, "active": active})
+        except Exception as exc:
+            self.send_json(400, {"error": str(exc)})
+
+    def do_DELETE(self) -> None:
+        """Delete unused records; archive records referenced by financial/stock history."""
+        try:
+            user = self.require_user(admin=True)
+            if not user: return
+            parts = [part for part in urlparse(self.path).path.split("/") if part]
+            if len(parts) != 4 or parts[:2] != ["api", "admin"]:
+                self.send_json(404, {"error": "Endpoint nahin mila."}); return
+            kind, record_id = parts[2], parts[3]
+            tables = {"products": "products", "customers": "customers", "suppliers": "suppliers"}
+            table = tables.get(kind)
+            if not table: self.send_json(400, {"error": "Staff account ko delete ke bajaye remove-access control se manage karein."}); return
+            refs = {
+                "products": [("sale_items", "product_id"), ("purchase_items", "product_id"), ("stock_movements", "product_id")],
+                "customers": [("sales", "customer_id"), ("payments", "customer_id")],
+                "suppliers": [("purchases", "supplier_id"), ("payments", "supplier_id")],
+            }[kind]
+            with connect(self.app.db_path) as db:
+                row = db.execute(f"SELECT * FROM {table} WHERE id=?", (record_id,)).fetchone()
+                if not row: self.send_json(404, {"error": "Record nahin mila."}); return
+                linked = any(db.execute(f"SELECT 1 FROM {ref_table} WHERE {ref_column}=? LIMIT 1", (record_id,)).fetchone() for ref_table, ref_column in refs)
+                if kind == "products" and row["stock_quantity"] != 0: linked = True
+                if kind == "customers" and row["opening_balance_paisa"] != 0: linked = True
+                if kind == "suppliers" and row["opening_balance_paisa"] != 0: linked = True
+                if linked:
+                    db.execute(f"UPDATE {table} SET active=0,updated_at=? WHERE id=?", (now(), record_id))
+                    action, archived = "record_archived", True
+                else:
+                    db.execute(f"DELETE FROM {table} WHERE id=?", (record_id,))
+                    action, archived = "record_deleted", False
+                self.app.audit(db, user["id"], action, kind, record_id, {"archived": archived})
+            self.send_json(200, {"ok": True, "archived": archived})
+        except sqlite3.IntegrityError:
+            self.send_json(409, {"error": "Is record ke sath related history maujood hai; record archive karein."})
+        except Exception as exc:
+            self.send_json(400, {"error": str(exc)})
+
     def serve_static(self, path: str) -> None:
         route = "/index.html" if path in ("/", "") else path
         target = (WEB / route.lstrip("/")).resolve()
