@@ -8,10 +8,10 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 async function api(path,options={}){
   const headers={'Content-Type':'application/json',...(options.headers||{})};
   if(state.token) headers.Authorization=`Bearer ${state.token}`;
-  const res=await fetch('/api'+path,{...options,headers});
-  let data={}; try{data=await res.json()}catch{}
+  let res;try{res=await fetch('/api'+path,{...options,headers})}catch{throw Error('Local backend se connection nahi ho saka. PowerShell mein sabtrader_web.py serve chalayein aur http://127.0.0.1:8765 kholein.')}
+  let data={}; try{data=await res.json()}catch{throw Error(`Server ne API JSON ke bajaye web page diya (HTTP ${res.status}). S.A.B Trader ka sabtrader_web.py server chalayen; GitHub Pages ya python -m http.server se login nahi hota.`)}
   if(res.status===401&&path!='/login'){logout(false);throw Error('Session khatam ho gaya. Dobara login karein.')}
-  if(!res.ok) throw Error(data.error||'Request poori nahin ho saki.');
+  if(!res.ok) throw Error(data.error||`Server request reject kar raha hai (HTTP ${res.status}). Server version aur database setup check karein.`);
   return data;
 }
 function toast(message,error=false){const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=message;$('#toastHost').append(el);setTimeout(()=>el.remove(),3500)}

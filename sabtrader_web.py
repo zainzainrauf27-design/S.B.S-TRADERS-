@@ -817,16 +817,32 @@ def main() -> int:
     if args.db:
         database = args.db.resolve()
     else:
-        database = Path(os.environ.get("LOCALAPPDATA", str(ROOT / "work"))) / "SABTrader" / "data" / "sabtrader.sqlite"
+        configured_db = os.environ.get("SAB_DB_PATH")
+        if configured_db:
+            database = Path(configured_db).resolve()
+        else:
+            database = Path(os.environ.get("LOCALAPPDATA", str(ROOT / "work"))) / "SABTrader" / "data" / "sabtrader.sqlite"
     app = App(database)
     if args.command == "create-admin":
         import getpass
-        pw = getpass.getpass("Naya Admin password (minimum 12 characters): ")
+        pw = getpass.getpass("Admin password (temporary first login: admin 111; otherwise 12+ characters): ")
         confirm = getpass.getpass("Password dobara likhein: ")
         if pw != confirm: raise SystemExit("Passwords match nahin karte.")
         app.create_admin(args.username, args.name, pw)
-        print(f"Admin '{args.username}' create ho gaya. Password sirf aap ke paas rahega.")
+        print(f"Admin '{args.username}' create ho gaya. Temporary password use ki ho to pehli login par foran change karein.")
         return 0
+    # Render (and similar hosts) provides first-run Admin details through
+    # environment variables. Never put these credentials in the repository.
+    # Existing Admins are left untouched on every subsequent restart/deploy.
+    initial_username = os.environ.get("SAB_ADMIN_USERNAME")
+    initial_password = os.environ.get("SAB_ADMIN_PASSWORD")
+    initial_name = os.environ.get("SAB_ADMIN_NAME", "Business Admin")
+    if initial_username and initial_password:
+        with connect(database) as db:
+            has_admin = db.execute("SELECT 1 FROM users WHERE role='admin' AND active=1 LIMIT 1").fetchone()
+        if not has_admin:
+            app.create_admin(initial_username, initial_name, initial_password)
+            print(f"Initial Admin '{initial_username}' created from environment settings.")
     if args.host not in {"127.0.0.1", "localhost", "::1"}:
         print("Warning: LAN access selected. Sirf trusted network par chalayein; public internet par port forward na karein.", file=sys.stderr)
     Handler.app = app
