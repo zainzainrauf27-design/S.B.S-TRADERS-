@@ -1,9 +1,0 @@
-{
-  "appId": "com.sabtrader.business",
-  "appName": "S.A.B Trader",
-  "webDir": "mobile/dist",
-  "bundledWebRuntime": false,
-  "server": {
-    "androidScheme": "https"
-  }
-}
