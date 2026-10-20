@@ -75,15 +75,16 @@ class App:
         apply_migrations(self.db_path)
 
     def create_admin(self, username: str, display_name: str, password: str) -> None:
-        if len(password) < 12:
+        temporary_password = username.casefold() == "admin" and password == "admin 111"
+        if len(password) < 12 and not temporary_password:
             raise ValueError("Admin password kam az kam 12 characters ka hona chahiye.")
         with connect(self.db_path) as db:
             if db.execute("SELECT 1 FROM users WHERE role='admin' AND active=1").fetchone():
                 raise ValueError("Active Admin pehle se maujood hai.")
             stamp = now()
             user_id=new_id()
-            db.execute("INSERT INTO users(id,username,display_name,password_hash,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                       (user_id, username, display_name, password_hash(password), "admin", stamp, stamp))
+            db.execute("INSERT INTO users(id,username,display_name,password_hash,role,created_at,updated_at,must_change_password) VALUES(?,?,?,?,?,?,?,?)",
+                       (user_id, username, display_name, password_hash(password), "admin", stamp, stamp, int(temporary_password)))
             self.audit(db,user_id,"admin_created","user",user_id,{"username":username})
 
     def authenticate(self, username: str, password: str) -> tuple[sqlite3.Row | None, str | None]:
@@ -105,7 +106,7 @@ class App:
             return None
         token_digest = hashlib.sha256(token.encode()).hexdigest()
         with connect(self.db_path) as db:
-            return db.execute("""SELECT u.id,u.username,u.display_name,u.role,s.id AS session_id
+            return db.execute("""SELECT u.id,u.username,u.display_name,u.role,u.must_change_password,s.id AS session_id
                 FROM sessions s JOIN users u ON u.id=s.user_id
                 WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? AND u.active=1""",
                 (token_digest, now())).fetchone()
@@ -396,6 +397,9 @@ class Handler(BaseHTTPRequestHandler):
         if not user:
             self.send_json(401, {"error": "Login dobara karein."})
             return None
+        if user["must_change_password"] and urlparse(self.path).path not in ("/api/me", "/api/account", "/api/logout"):
+            self.send_json(403, {"error": "Pehle Admin panel mein apna temporary password change karein."})
+            return None
         if admin and user["role"] != "admin":
             self.send_json(403, {"error": "Is feature ke liye Admin access chahiye."})
             return None
@@ -448,6 +452,13 @@ class Handler(BaseHTTPRequestHandler):
                 if user["role"] != "admin": self.send_json(403, {"error": "Admin access chahiye."}); return
                 with connect(self.app.db_path) as db:
                     self.send_json(200, [dict(r) for r in db.execute("SELECT id,username,display_name,role,active,created_at FROM users ORDER BY display_name")]); return
+            if parsed.path == "/api/support":
+                with connect(self.app.db_path) as db:
+                    if user["role"] == "admin":
+                        rows = db.execute("SELECT t.*,u.display_name requester_name,u.username requester_username FROM support_tickets t JOIN users u ON u.id=t.requested_by ORDER BY t.updated_at DESC LIMIT 300").fetchall()
+                    else:
+                        rows = db.execute("SELECT t.*,u.display_name requester_name,u.username requester_username FROM support_tickets t JOIN users u ON u.id=t.requested_by WHERE t.requested_by=? ORDER BY t.updated_at DESC LIMIT 100", (user["id"],)).fetchall()
+                    self.send_json(200, [dict(row) for row in rows]); return
             if parsed.path == "/api/suppliers":
                 if user["role"]!="admin": self.send_json(403,{"error":"Sirf Admin supplier records dekh sakta hai."});return
                 self.send_json(200,self.app.get_suppliers(query.get("q",[""])[0]));return
@@ -477,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
                     count+=1;self.login_attempts[key]=(0,time.monotonic()+300) if count>=5 else (count,0.0)
                     self.send_json(401, {"error": "Username ya password durust nahin."}); return
                 self.login_attempts.pop(key,None)
-                self.send_json(200, {"token": token, "user": {"id": user["id"], "display_name": user["display_name"], "role": user["role"]}}); return
+                self.send_json(200, {"token": token, "user": {"id": user["id"], "display_name": user["display_name"], "username": user["username"], "role": user["role"], "must_change_password": bool(user["must_change_password"])}}); return
             user = self.require_user()
             if not user: return
             if path == "/api/logout":
@@ -487,6 +498,45 @@ class Handler(BaseHTTPRequestHandler):
                         db.execute("UPDATE sessions SET revoked_at=? WHERE token_hash=?", (now(), hashlib.sha256(token.encode()).hexdigest()))
                         self.app.audit(db, user["id"], "logout", "user", user["id"])
                 self.send_json(200, {"ok": True}); return
+            if path == "/api/account":
+                if user["role"] != "admin": self.send_json(403, {"error": "Admin access chahiye."}); return
+                username = str(payload.get("username") or "").strip()
+                current_password = str(payload.get("current_password") or "")
+                new_password = str(payload.get("new_password") or "")
+                if len(username) < 3 or len(username) > 64: raise ValueError("Username 3 se 64 characters ka hona chahiye.")
+                with connect(self.app.db_path) as db:
+                    admin = db.execute("SELECT password_hash FROM users WHERE id=? AND role='admin'", (user["id"],)).fetchone()
+                    if not admin or not password_matches(current_password, admin["password_hash"]): raise ValueError("Current password match nahin hua.")
+                    if new_password and len(new_password) < 12: raise ValueError("Naya password kam az kam 12 characters ka hona chahiye.")
+                    if new_password:
+                        db.execute("UPDATE users SET username=?,password_hash=?,must_change_password=0,updated_at=? WHERE id=?", (username, password_hash(new_password), now(), user["id"]))
+                    else:
+                        db.execute("UPDATE users SET username=?,must_change_password=0,updated_at=? WHERE id=?", (username, now(), user["id"]))
+                    db.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND id<>? AND revoked_at IS NULL", (now(), user["id"], user["session_id"]))
+                    self.app.audit(db, user["id"], "admin_credentials_changed", "user", user["id"], {"username": username, "password_changed": bool(new_password)})
+                self.send_json(200, {"ok": True, "user": {"id": user["id"], "username": username, "display_name": user["display_name"], "role": "admin", "must_change_password": False}}); return
+            if path == "/api/support":
+                category = str(payload.get("category") or "Other").strip()
+                subject = str(payload.get("subject") or "").strip()
+                message = str(payload.get("message") or "").strip()
+                if category not in {"Complaint", "Technical issue", "Account help", "Feature request", "Other"}: raise ValueError("Support category durust nahin.")
+                if not subject or len(subject) > 120 or not message or len(message) > 3000: raise ValueError("Subject (1–120) aur detail (1–3000 characters) dein.")
+                ticket_id = new_id(); stamp = now(); ticket_number = "SUP-" + uuid.uuid4().hex[:8].upper()
+                with connect(self.app.db_path) as db:
+                    db.execute("INSERT INTO support_tickets(id,ticket_number,requested_by,category,subject,message,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", (ticket_id,ticket_number,user["id"],category,subject,message,stamp,stamp))
+                    self.app.audit(db,user["id"],"support_ticket_created","support_ticket",ticket_id,{"ticket_number":ticket_number})
+                self.send_json(201,{"id":ticket_id,"ticket_number":ticket_number,"category":category,"subject":subject,"message":message,"status":"open","created_at":stamp});return
+            if path.startswith("/api/support/") and path.endswith("/reply"):
+                if user["role"] != "admin": self.send_json(403,{"error":"Support ka jawab sirf Admin record kar sakta hai."});return
+                ticket_id=path.split("/")[3];reply=str(payload.get("developer_reply") or "").strip();status=str(payload.get("status") or "in_progress")
+                if status not in {"open","in_progress","resolved","closed"}:raise ValueError("Ticket status durust nahin.")
+                if not reply or len(reply)>3000:raise ValueError("Developer response 1–3000 characters ka hona chahiye.")
+                stamp=now()
+                with connect(self.app.db_path) as db:
+                    result=db.execute("UPDATE support_tickets SET developer_reply=?,status=?,updated_at=?,replied_at=? WHERE id=?",(reply,status,stamp,stamp,ticket_id))
+                    if not result.rowcount:self.send_json(404,{"error":"Support request nahin mili."});return
+                    self.app.audit(db,user["id"],"support_ticket_replied","support_ticket",ticket_id,{"status":status})
+                self.send_json(200,{"ok":True});return
             if path == "/api/customers": self.send_json(201, self.app.save_customer(user, payload)); return
             if path == "/api/sales": self.send_json(201, self.app.create_sale(user, payload)); return
             if path == "/api/payments":

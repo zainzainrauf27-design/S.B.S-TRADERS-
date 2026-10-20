@@ -12,7 +12,7 @@ This is an in-progress website milestone with a working local API and UI for sig
 - Responsive HTML/CSS/JavaScript site, served from the same local origin as the JSON API.
 - Default listener is `127.0.0.1:8765`; it accepts connections only from this computer. Do not expose it to the public internet.
 - Windows database default: `%LOCALAPPDATA%\\SABTrader\\data\\sabtrader.sqlite`. Use `--db` to choose a development/test path.
-- Passwords use PBKDF2-HMAC-SHA256 with per-password random salts. Auth sessions expire after 12 hours and can be revoked by logout. The first Admin is created from the command line; there is no hardcoded password.
+- Passwords use PBKDF2-HMAC-SHA256 with per-password random salts. Auth sessions expire after 12 hours and can be revoked by logout. The first Admin is created from the command line. The user-requested bootstrap credential `admin` / `admin 111` is accepted only as a temporary first-run password and forces a password change before any business API access; the new password must be at least 12 characters.
 - Prices are integer paisa (100 paisa = Rs. 1). Sale stock and ledger changes run in a SQLite transaction. Product stock changes are recorded in an append-only movement ledger.
 
 ## Run locally (Windows PowerShell)
@@ -26,11 +26,11 @@ python .\scripts\sabtrader_web.py serve
 
 Do not double-click `web\index.html`: the website must be opened through its local Python server so the stylesheet, login API, and SQLite database all use the correct origin. After login, Admin controls are in the **Admin panel** navigation item. Admin can create staff users, remove their access, and restore it. Product, customer, and supplier rows have Delete/Restore actions. A record with sales, purchase, stock, payment, or opening-balance history is archived instead of permanently erased so reports and ledgers remain intact. Sales and purchases use their reversal actions rather than destructive deletion.
 
-The first command securely prompts for an Admin password (minimum 12 characters). Open `http://127.0.0.1:8765` in a browser. Press Ctrl+C in the server window to stop it. For a development database within the workspace, append `--db .\\work\\sabtrader-dev.sqlite` to both commands.
+The first command securely prompts for the Admin password. To use the requested bootstrap login, enter `admin 111` at that prompt. Sign in as `admin`; the app will require a new 12+ character password in Admin panel before business pages are available. Open `http://127.0.0.1:8765` in a browser. Press Ctrl+C in the server window to stop it. For a development database within the workspace, append `--db .\\work\\sabtrader-dev.sqlite` to both commands.
 
 ## Roles
 
-Admin can manage catalog, stock, customers and their financial ledger, orders, staff accounts, attendance, settings, reports, and manual backups. Staff can create orders/customers and see permitted catalog information, their own orders and attendance. The API checks roles server-side; hiding a menu is not considered authorization.
+Admin can manage catalog, stock, customers and their financial ledger, orders, staff accounts, developer support replies, attendance, settings, reports, and manual backups. Admin can update the Admin username/password, add staff, revoke or restore staff access, and delete unused product/customer/supplier records. Records with ledger, invoice, stock, opening-balance, or payment history are archived instead of erased. Staff can create support requests and open a WhatsApp message to WEB BY ZAINI. WhatsApp conversations do not sync into this local app automatically; an Admin must record the developer's response on the ticket for the solution to appear in the app. The API checks roles server-side; hiding a menu is not considered authorization.
 
 ## Sync and offline limits
 

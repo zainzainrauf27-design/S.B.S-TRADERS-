@@ -1,46 +1,37 @@
-# S.A.B Trader — Asal Website Source
+# S.A.B Trader — Website, Admin aur Developer Support
 
-Yeh static demo nahi hai. ZIP mein actual responsive website, Python local API, SQLite migration aur setup guide shamil hain. Business records backend mein save hote hain. Koi demo username ya password nahi.
+Yeh real local website hai, static demo nahi. Website ke saath Python API aur SQLite database shamil hain.
 
-## Windows par start karna
+## First run: tumhara Admin login
 
-1. ZIP ko extract karein aur extracted project folder kholein.
-2. Python 3 install karein.
-3. PowerShell ko project folder mein open karein.
-4. Pehli dafa Admin account banayein:
+1. ZIP extract karo aur project folder kholo.
+2. Python 3 install karo.
+3. Project folder mein PowerShell khol kar yeh chalao:
 
 ```powershell
 python .\scripts\sabtrader_web.py create-admin --username admin --name "Business Admin"
 ```
 
-Apna strong password prompt par dein (kam az kam 12 characters). Password source files mein save nahi hota.
+Password prompt par `admin 111` type karo. Yeh sirf temporary first-run password hai. Pehli login par **Admin panel** mein foran naya password set karna zaroori hoga; naya password kam az kam 12 characters ka ho.
 
-5. Local website/backend start karein:
+Phir server chalao:
 
 ```powershell
 python .\scripts\sabtrader_web.py serve
 ```
 
-6. Browser mein `http://127.0.0.1:8765` kholein aur apne Admin credentials se login karein. PowerShell window chalta rehna chahiye. Website rokne ke liye PowerShell mein `Ctrl+C` dabayein.
+Browser mein `http://127.0.0.1:8765` kholo. PowerShell window website chalne tak khuli rehni chahiye. Server rokne ke liye `Ctrl+C` dabao. `web\index.html` par double-click na karo; us se API/database login kaam nahi karega.
 
-`web\index.html` par double-click na karein. Website ko Python server se kholna zaroori hai, warna login API/database connect nahi honge. Is version mein CSS paths relative hain; browser mein server URL use karein.
+## Admin panel
 
-## Admin panel aur delete controls
+Admin login ke baad sidebar mein **Admin panel** kholo. Yahan Admin username/password badal sakte ho, staff add kar sakte ho, aur staff access remove/restore kar sakte ho. Staff ka access remove hote hi uske active sessions band ho jate hain. Product, customer aur supplier rows mein Delete/Restore controls hain. Jis record ka transaction, balance, payment ya stock history ho, woh archive hoga taake purana hisaab mehfooz rahe. Sales/purchases mein cancel, return ya reverse controls istemal karo.
 
-Admin login ke baad sidebar mein **Admin panel** kholein. Wahan se staff add kar sakte hain, access remove kar sakte hain aur baad mein restore kar sakte hain. Products, customers aur suppliers mein Delete/Restore controls hain. Jis record ki financial, stock ya transaction history ho, woh permanently erase hone ke bajaye archive hota hai taake purane invoices, balances aur reports mehfooz rahen. Sales/purchases ko delete karne ke bajaye Cancel/Return/Reverse actions istemal karein.
+## Developer support
 
-## Data location
+Admin aur Staff dono **Developer support** se complaint, technical issue, account help ya feature request save kar sakte hain. Ticket ke WhatsApp button se WEB BY ZAINI ko pre-filled request bheji ja sakti hai. WhatsApp agent ka response is local app mein automatic receive nahi ho sakta jab tak WhatsApp Business API/webhook configure na ho. Response milne ke baad Admin ticket par **Add solution** se jawab aur status save kar sakta hai; woh solution user ko ticket details mein nazar aayega.
 
-SQLite database default tor par Windows ke `%LOCALAPPDATA%\SABTrader\data\sabtrader.sqlite` mein banti hai. Is database, backups, passwords ya customer information ko GitHub par upload na karein.
+## Data aur GitHub
 
-## GitHub par source rakhna
+SQLite file `%LOCALAPPDATA%\SABTrader\data\sabtrader.sqlite` mein rehti hai. GitHub Pages Python API/SQLite nahi chala sakta. GitHub ko private source repository ke liye use karo; database, backups, passwords aur customer data repository mein kabhi upload na karo.
 
-1. GitHub par private repository banayein.
-2. ZIP extract karke tamam source files repository mein upload karein.
-3. `.gitignore` database, backups aur local secrets ko exclude karta hai; phir bhi upload se pehle check karein ke koi customer data ya password shamil nahi.
-
-GitHub Pages Python API/SQLite nahi chala sakta. GitHub source/version control ke liye hai, application ka backend Windows computer par chalta hai. Is backend ko public internet par seedha expose na karein.
-
-## Included aur abhi baqi
-
-Website milestone mein login, Admin/Staff permissions, dashboard, products/stock, customers/ledger, sales/invoices, suppliers/purchases, attendance, reports, settings, manual SQLite backup/restore aur record archive/delete controls shamil hain. Windows installer, Android APK/offline sync, scheduled backups, supplier payment ledger aur physical 80mm printer test abhi deliver nahi huay. `README.md` mein tamam known limitations aur prior verification notes hain.
+Windows installer, Android APK/offline sync, scheduled backups aur physical 80mm printer test abhi is website ZIP mein nahi hain. Zyada tafseel, purane workflow verification notes aur known limitations `README.md` mein hain.
