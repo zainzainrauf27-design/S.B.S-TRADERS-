@@ -1,0 +1,27 @@
+# Production and development business data
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+backups/
+data/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime/build output
+node_modules/
+dist/
+build/
+release/
+coverage/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+.vscode/
+*.log

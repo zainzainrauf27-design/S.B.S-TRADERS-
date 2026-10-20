@@ -1,29 +1,63 @@
-# S.A.B Trader — GitHub Pages demo
+# S.A.B Trader Business Website
 
-This is a static, browser-only preview of the cosmetics wholesale management website. It has no server, database, secure login, or synchronization between devices. Sample edits are saved in this browser's localStorage. Do not enter real shop, customer, supplier, staff, or financial information.
+A responsive, local-first cosmetics wholesale management website for S.A.B Trader. Business records stay in SQLite on the owner's computer. This delivery is scoped to the website; Windows installer and Android APK are out of scope.
 
-## Demo sign-in
+## Current status
 
-- Admin: `admin` / `Demo-Admin-2026!`
-- Staff: `staff` / `Demo-Staff-2026!`
+This is an in-progress website milestone with a working local API and UI for sign-in, admin/staff access, dashboard, products, stock adjustments, customers, customer ledger/payments, suppliers, purchases, sales, invoices, full sale cancellation/return and payment reversal, attendance, reports, settings, manual verified backups, and validated restore with a safety backup. Automatic scheduled backups, partial item returns, separate supplier payments, category/brand management, advanced analytics, a durable browser offline queue, automated tests and deployment hardening are not complete. Do not call the whole system production-complete yet.
 
-These are public demo credentials and are not security controls. The staff view has limited navigation, but a static public website must never be used to protect sensitive business data.
+## Technology and local data
 
-## Publish on GitHub Pages
+- Python standard-library HTTP server and SQLite; no external packages or cloud database are required.
+- Responsive HTML/CSS/JavaScript site, served from the same local origin as the JSON API.
+- Default listener is `127.0.0.1:8765`; it accepts connections only from this computer. Do not expose it to the public internet.
+- Windows database default: `%LOCALAPPDATA%\\SABTrader\\data\\sabtrader.sqlite`. Use `--db` to choose a development/test path.
+- Passwords use PBKDF2-HMAC-SHA256 with per-password random salts. Auth sessions expire after 12 hours and can be revoked by logout. The first Admin is created from the command line; there is no hardcoded password.
+- Prices are integer paisa (100 paisa = Rs. 1). Sale stock and ledger changes run in a SQLite transaction. Product stock changes are recorded in an append-only movement ledger.
 
-1. Create a GitHub repository.
-2. Upload all five files in this folder to the repository root: `index.html`, `app.js`, `styles.css`, `favicon.svg`, and `README.md`.
-3. In the repository, open **Settings → Pages**.
-4. Under **Build and deployment**, select **Deploy from a branch**, choose your default branch and **/(root)**, then save.
-5. Open the published Pages URL shown in that settings page.
+## Run locally (Windows PowerShell)
 
-The asset links are relative, so the site works from a repository Pages URL such as `https://username.github.io/repository/`.
+From this repository folder:
 
-## What the preview demonstrates
+```powershell
+python .\scripts\sabtrader_web.py create-admin --username admin --name "Business Admin"
+python .\scripts\sabtrader_web.py serve
+```
 
-- Dashboard, cosmetics product catalog, customer and supplier lists
-- Sample inventory adjustments, sales orders, invoices, customer payment entries
-- Supplier purchases, staff view, attendance view, settings and demo-data export/reset
-- Browser-only persistence for edits in the same browser profile
+The first command securely prompts for an Admin password (minimum 12 characters). Open `http://127.0.0.1:8765` in a browser. Press Ctrl+C in the server window to stop it. For a development database within the workspace, append `--db .\\work\\sabtrader-dev.sqlite` to both commands.
 
-Some workflows are preview-only. GitHub Pages cannot run the included SQLite/Python backend. This package is not the full production deployment from the original business requirements. For live multi-user use, deploy the Python/SQLite application on a private server or replace the backend with an authenticated hosted API and database before entering real data.
+## Roles
+
+Admin can manage catalog, stock, customers and their financial ledger, orders, staff accounts, attendance, settings, reports, and manual backups. Staff can create orders/customers and see permitted catalog information, their own orders and attendance. The API checks roles server-side; hiding a menu is not considered authorization.
+
+## Sync and offline limits
+
+This website writes directly to the local SQLite database while the computer and local server are running. A browser offline queue that survives closure/device restart and synchronizes after reconnection is not implemented yet. If the local computer is shut down or unreachable, this website cannot save authoritative business records. Remote access should use a properly secured VPN/reverse proxy design; public port forwarding is not supported.
+
+## Receipts
+
+The website renders a dedicated compact 80mm receipt template and invokes the browser's print dialog. It includes the configured company phone and `WEB BY ZAINI` / `03327021212` attribution by default. Preview layout has not been verified on a physical thermal printer; select the correct 80mm printer and paper size in its Windows driver.
+
+## Backups
+
+Admin can create a backup using SQLite's online backup API and an integrity check. Restore validates integrity/schema compatibility, creates a timestamped safety backup, atomically replaces the database and asks Admin to sign in again. Enter absolute `.sqlite` or `.db` paths in Backup & Restore. Automatic daily backups are not scheduled by the website. Keep another copy on an owner-controlled external drive. A backup on the same physical drive will not protect against that drive failing.
+
+## Database tables
+
+The initial migration defines users/sessions, settings, categories/brands/products, stock movements, customers/suppliers, sales/items, purchases/items, payments, attendance, idempotent sync operations, audit events, and migration history. Schema is versioned under `db/migrations/`; the Python migration runner applies files in order.
+
+## Verification so far
+
+- Python source compilation and JavaScript syntax checks passed.
+- Fresh migration applied; repeat migration was idempotent. SQLite integrity and foreign-key checks passed.
+- Local HTTP workflow checks passed for Admin and Staff sign-in, Admin-only routes, product/customer creation, an order with partial payment, duplicate order replay, stock deduction, invoice retrieval, payment reversal, sale cancellation with stock restoration, supplier purchase receipt/reversal, manual verified backup, and restore with a safety copy.
+- The UI sign-in page loaded in the in-app browser. Login with a real business account has not been exercised in the browser. Physical 80mm printer output, Windows Task Scheduler, and multi-device/offline workflows remain unverified.
+
+## Security boundaries and limitations
+
+- The server binds to loopback by default. LAN use is not enabled by default and this basic HTTP server is not configured for TLS.
+- A session bearer token is held in the browser tab's session storage; protect the computer's browser profile and lock the computer when unattended.
+- Login failures are delayed but not persistently rate-limited yet.
+- Staff cannot see purchase cost through the product API or access admin-only reports, backups, settings, staff, or customer financial ledgers.
+- Browser local storage is not used as the business database.
+- Scheduled backups, partial item returns, supplier payments after purchase, category/brand management, deeper reports, and persistent offline website sync still need implementation before production use.
